@@ -117,3 +117,50 @@ proc getBlake2b*(s: string, hash_size: uint8, key: string = ""): string =
    blake2b_init(b, hash_size, cstring(key), len(key))
    blake2b_update(b, s, len(s))
    result = $blake2b_final(b)
+   
+when isMainModule:
+   import strutils
+
+   proc hex2str(s: string): string =
+      result = ""
+      for i in countup(0, high(s), 2):
+         add(result, chr(parseHexInt(s[i] & s[i+1])))
+
+   assert(getBlake2b("abc", 4, "abc") == "b8f97209")
+   assert(getBlake2b(nil, 4, "abc")   == "8ef2d47e")
+   assert(getBlake2b("abc", 4)        == "63906248")
+   assert(getBlake2b(nil, 4)          == "1271cf25")
+
+   var b1, b2: Blake2b
+   blake2b_init(b1, 4)
+   blake2b_init(b2, 4)
+   blake2b_update(b1, 97'u8, 1)
+   blake2b_update(b1, 98'u8, 1)
+   blake2b_update(b1, 99'u8, 1)
+   blake2b_update(b2, @[97'u8, 98'u8, 99'u8], 3)
+   assert($blake2b_final(b1) == $blake2b_final(b2))
+
+   let f = open("blake2b-kat.txt", fmRead)
+   var
+      data, key, hash, r: string
+      b: Blake2b
+   while true:
+      try:
+         data = f.readLine()
+         data = hex2str(data[4..^0])
+         key  = f.readLine()
+         key  = hex2str(key[5..^0])
+         hash = f.readLine()
+         hash = hash[6..^0]
+         r = getBlake2b(data, 64, key)
+         assert(r == hash)
+
+         blake2b_init(b, 64, key, 64)
+         for i in 0..high(data):
+            blake2b_update(b, ($data[i]).cstring, 1)
+         assert($blake2b_final(b) == hash)
+
+         discard f.readLine()
+      except IOError: break
+   close(f)
+   echo "ok"
