@@ -77,7 +77,7 @@ proc blake2b_update*(c: var Blake2b, data: cstring|string|seq|uint8, data_size: 
          inc(c.offset, c.buffer_idx)
          compress(c)
       when data is cstring or data is string:
-         c.buffer[c.buffer_idx] = ord(data[i])
+         c.buffer[c.buffer_idx] = ord(data[i]).uint8
       elif data is seq:
          c.buffer[c.buffer_idx] = data[i]
       else:
@@ -101,7 +101,7 @@ proc blake2b_final*(c: var Blake2b): seq[uint8] =
    inc(c.offset, c.buffer_idx)
    padding(c.buffer, c.buffer_idx)
    compress(c, 1)
-   for i in 0..<c.hash_size:
+   for i in 0 ..< c.hash_size.int:
       result.add(cast[uint8]((c.hash[i div 8] shr (8 * (i and 7)) and 0xFF)))
    zeroMem(addr(c), sizeof(c))
 
@@ -112,12 +112,12 @@ proc `$`*(d: seq[uint8]): string =
     add(result, digits[(d[i] shr 4) and 0xF])
     add(result, digits[d[i] and 0xF])
 
-proc getBlake2b*(s: string, hash_size: uint8, key: string = nil): string =
+proc getBlake2b*(s: string, hash_size: uint8, key: string = ""): string =
    var b: Blake2b
    blake2b_init(b, hash_size, cstring(key), len(key))
    blake2b_update(b, s, len(s))
    result = $blake2b_final(b)
-
+   
 when isMainModule:
    import strutils
 
@@ -164,4 +164,3 @@ when isMainModule:
       except IOError: break
    close(f)
    echo "ok"
-
